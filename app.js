@@ -308,7 +308,7 @@ function showResultPopup({ predictedLabel, actualLabel, score }) {
         popup.style.border = '1px solid #ccc';
         popup.style.padding = '16px';
         popup.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        popup.style.zIndex = 9999;
+        popup.style.zIndex = 100000;
         popup.style.minWidth = '320px';
         document.body.appendChild(popup);
     }
@@ -571,6 +571,12 @@ function showLoading(message = 'Loading...') {
 function hideLoading() {
     const loadingIndicators = document.querySelectorAll('.loading-indicator');
     loadingIndicators.forEach(loading => loading.remove());
+}
+
+// Small utility to escape HTML used in popup/content rendering
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"'`]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;","`":"&#96;"})[s]);
 }
 
 async function loadInitialData() {
