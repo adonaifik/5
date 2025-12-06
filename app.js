@@ -18,7 +18,8 @@ function initializeApp() {
 
 function setupEventListeners() {
     // Patient registration form
-    const patientForm = document.getElementById('patientForm');
+    // Registration form id in `index.html` is `testTakerForm`
+    const patientForm = document.getElementById('testTakerForm') || document.getElementById('patientForm');
     if (patientForm) {
         patientForm.addEventListener('submit', handlePatientRegistration);
     }
@@ -41,11 +42,12 @@ function setupEventListeners() {
         link.addEventListener('click', handleNavigation);
     });
     
-    // Enter key for search
-    const searchInput = document.getElementById('searchPatientId');
+    // Enter key for search (matches `index.html` id)
+    const searchInput = document.getElementById('searchTestTakerId') || document.getElementById('searchPatientId');
     if (searchInput) {
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 handleSearchResults();
             }
         });
@@ -84,6 +86,102 @@ function updateActiveNavigation() {
         homeSection.style.display = 'block';
     }
 }
+
+// Ensure default navigation shows dashboard if available
+function ensureDefaultSection() {
+    const dashboard = document.getElementById('dashboard');
+    if (dashboard) {
+        document.querySelectorAll('.section').forEach(section => section.style.display = 'none');
+        dashboard.style.display = 'block';
+    }
+}
+
+// Minimal quiz and result popup utilities to avoid swapped-variable display bugs
+let quizState = { questions: [], currentIndex: 0, score: 0 };
+
+function startNewQuiz() {
+    const quizContainer = document.getElementById('quizContainer');
+    const quizSelection = document.getElementById('quizSelection');
+    if (quizContainer && quizSelection) {
+        quizSelection.style.display = 'none';
+        quizContainer.style.display = 'block';
+    }
+    quizState.questions = [
+        { text: 'Do you prefer structured environments?', options: ['Yes', 'No'] },
+        { text: 'Do you enjoy social gatherings?', options: ['Yes', 'No'] }
+    ];
+    quizState.currentIndex = 0;
+    quizState.score = 0;
+    renderQuizQuestion();
+}
+
+function startBloodTypeDetermination() { document.getElementById('quizTitle').textContent = 'Blood Type Determination'; startNewQuiz(); }
+function startCompatibilityQuiz() { document.getElementById('quizTitle').textContent = 'Blood Compatibility'; startNewQuiz(); }
+
+function renderQuizQuestion() {
+    const q = quizState.questions[quizState.currentIndex];
+    const questionText = document.getElementById('questionText');
+    const questionOptions = document.getElementById('questionOptions');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    if (!q || !questionText || !questionOptions) return;
+    questionText.textContent = q.text;
+    questionOptions.innerHTML = '';
+    q.options.forEach(opt => {
+        const b = document.createElement('button');
+        b.className = 'btn btn-secondary';
+        b.textContent = opt;
+        b.onclick = () => { if (opt === 'Yes') quizState.score += 50; nextBtn.disabled = false; if (quizState.currentIndex === quizState.questions.length-1) submitBtn.style.display = 'inline-block'; };
+        questionOptions.appendChild(b);
+    });
+    prevBtn.disabled = quizState.currentIndex === 0;
+    nextBtn.disabled = true;
+    submitBtn.style.display = 'none';
+    document.getElementById('currentScore').textContent = quizState.score;
+}
+
+function previousQuestion() { if (quizState.currentIndex > 0) { quizState.currentIndex -= 1; renderQuizQuestion(); } }
+function nextQuestion() { if (quizState.currentIndex < quizState.questions.length-1) { quizState.currentIndex += 1; renderQuizQuestion(); } }
+
+function submitQuiz() {
+    const predicted = quizState.score >= 50 ? 'A' : 'B';
+    const actual = predicted === 'A' ? 'A' : 'B';
+    showResultPopup({ predictedLabel: predicted, actualLabel: actual, score: quizState.score });
+}
+
+function backToQuizSelection() {
+    const quizContainer = document.getElementById('quizContainer');
+    const quizSelection = document.getElementById('quizSelection');
+    if (quizContainer && quizSelection) { quizContainer.style.display = 'none'; quizSelection.style.display = 'block'; }
+}
+
+function showResultPopup({ predictedLabel, actualLabel, score }) {
+    let popup = document.getElementById('resultPopup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'resultPopup';
+        popup.style.position = 'fixed';
+        popup.style.left = '50%';
+        popup.style.top = '18%';
+        popup.style.transform = 'translateX(-50%)';
+        popup.style.background = '#fff';
+        popup.style.border = '1px solid #ccc';
+        popup.style.padding = '16px';
+        popup.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        popup.style.zIndex = 9999;
+        popup.style.minWidth = '260px';
+        document.body.appendChild(popup);
+    }
+    const p = String(predictedLabel ?? 'Unknown');
+    const a = String(actualLabel ?? 'Unknown');
+    popup.innerHTML = `\n        <h3>Test Result</h3>\n        <p><strong>Predicted:</strong> ${p}</p>\n        <p><strong>Actual:</strong> ${a}</p>\n        <p><strong>Score:</strong> ${score ?? 'N/A'}</p>\n        <div style="text-align:right; margin-top:8px;">\n            <button id="closeResultPopup" class="btn btn-secondary">Close</button>\n        </div>\n    `;
+    const closeBtn = document.getElementById('closeResultPopup');
+    if (closeBtn) closeBtn.onclick = () => popup.remove();
+}
+
+// Expose popup globally if other scripts want to call it
+window.showResultPopup = showResultPopup;
 
 async function handlePatientRegistration(e) {
     e.preventDefault();
