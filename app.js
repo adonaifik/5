@@ -96,8 +96,13 @@ function ensureDefaultSection() {
     }
 }
 
-// Minimal quiz and result popup utilities to avoid swapped-variable display bugs
-let quizState = { questions: [], currentIndex: 0, score: 0 };
+// Quiz and result popup utilities: 10 structured weighted questions
+let quizState = {
+    questions: [],
+    currentIndex: 0,
+    scores: { A: 0, B: 0, AB: 0, O: 0 },
+    responses: [] // store chosen option index per question
+};
 
 function startNewQuiz() {
     const quizContainer = document.getElementById('quizContainer');
@@ -106,12 +111,95 @@ function startNewQuiz() {
         quizSelection.style.display = 'none';
         quizContainer.style.display = 'block';
     }
+
+    // Ten well-structured questions with weighted options for A, B, AB, O
     quizState.questions = [
-        { text: 'Do you prefer structured environments?', options: ['Yes', 'No'] },
-        { text: 'Do you enjoy social gatherings?', options: ['Yes', 'No'] }
+        {
+            text: 'Do you prefer orderly routines and planning?',
+            options: [
+                { label: 'Often', weights: { A: 2, B: 0, AB: 1, O: 0 } },
+                { label: 'Sometimes', weights: { A: 1, B: 0, AB: 1, O: 0 } },
+                { label: 'Rarely', weights: { A: 0, B: 2, AB: 0, O: 1 } }
+            ]
+        },
+        {
+            text: 'Are you energized by social events and spontaneity?',
+            options: [
+                { label: 'Yes', weights: { A: 0, B: 2, AB: 1, O: 1 } },
+                { label: 'Sometimes', weights: { A: 0, B: 1, AB: 1, O: 1 } },
+                { label: 'No', weights: { A: 2, B: 0, AB: 0, O: 0 } }
+            ]
+        },
+        {
+            text: 'Do you handle stress by planning and preparation?',
+            options: [
+                { label: 'Yes', weights: { A: 2, B: 0, AB: 1, O: 0 } },
+                { label: 'Sometimes', weights: { A: 1, B: 1, AB: 1, O: 0 } },
+                { label: 'No', weights: { A: 0, B: 2, AB: 0, O: 1 } }
+            ]
+        },
+        {
+            text: 'Do you prefer variety in food and activities?',
+            options: [
+                { label: 'Yes', weights: { A: 0, B: 2, AB: 1, O: 1 } },
+                { label: 'Occasionally', weights: { A: 1, B: 1, AB: 1, O: 0 } },
+                { label: 'No', weights: { A: 2, B: 0, AB: 0, O: 0 } }
+            ]
+        },
+        {
+            text: 'Do you find it easy to adapt to new situations?',
+            options: [
+                { label: 'Very Easy', weights: { A: 0, B: 2, AB: 1, O: 1 } },
+                { label: 'Somewhat', weights: { A: 1, B: 1, AB: 1, O: 0 } },
+                { label: 'Difficult', weights: { A: 2, B: 0, AB: 0, O: 0 } }
+            ]
+        },
+        {
+            text: 'Do you consider yourself community-oriented and outgoing?',
+            options: [
+                { label: 'Yes', weights: { A: 0, B: 2, AB: 1, O: 2 } },
+                { label: 'Somewhat', weights: { A: 1, B: 1, AB: 1, O: 1 } },
+                { label: 'No', weights: { A: 2, B: 0, AB: 0, O: 0 } }
+            ]
+        },
+        {
+            text: 'Are leadership and decisiveness natural to you?',
+            options: [
+                { label: 'Yes', weights: { A: 0, B: 2, AB: 1, O: 2 } },
+                { label: 'Sometimes', weights: { A: 1, B: 1, AB: 1, O: 1 } },
+                { label: 'No', weights: { A: 2, B: 0, AB: 0, O: 0 } }
+            ]
+        },
+        {
+            text: 'Do you tend to be cooperative and diplomatic?',
+            options: [
+                { label: 'Yes', weights: { A: 1, B: 0, AB: 2, O: 0 } },
+                { label: 'Sometimes', weights: { A: 1, B: 1, AB: 1, O: 0 } },
+                { label: 'No', weights: { A: 0, B: 2, AB: 0, O: 1 } }
+            ]
+        },
+        {
+            text: 'Do you prefer calm predictable schedules to excitement?',
+            options: [
+                { label: 'Prefer calm', weights: { A: 2, B: 0, AB: 1, O: 0 } },
+                { label: 'Flexible', weights: { A: 1, B: 1, AB: 1, O: 1 } },
+                { label: 'Prefer excitement', weights: { A: 0, B: 2, AB: 1, O: 1 } }
+            ]
+        },
+        {
+            text: 'How often do you try new experiences (travel, hobbies)?',
+            options: [
+                { label: 'Often', weights: { A: 0, B: 2, AB: 1, O: 2 } },
+                { label: 'Sometimes', weights: { A: 1, B: 1, AB: 1, O: 1 } },
+                { label: 'Rarely', weights: { A: 2, B: 0, AB: 0, O: 0 } }
+            ]
+        }
     ];
+
+    // reset state
     quizState.currentIndex = 0;
-    quizState.score = 0;
+    quizState.scores = { A: 0, B: 0, AB: 0, O: 0 };
+    quizState.responses = Array(quizState.questions.length).fill(null);
     renderQuizQuestion();
 }
 
@@ -126,28 +214,79 @@ function renderQuizQuestion() {
     const nextBtn = document.getElementById('nextBtn');
     const submitBtn = document.getElementById('submitBtn');
     if (!q || !questionText || !questionOptions) return;
+
     questionText.textContent = q.text;
     questionOptions.innerHTML = '';
-    q.options.forEach(opt => {
+
+    q.options.forEach((opt, i) => {
         const b = document.createElement('button');
-        b.className = 'btn btn-secondary';
-        b.textContent = opt;
-        b.onclick = () => { if (opt === 'Yes') quizState.score += 50; nextBtn.disabled = false; if (quizState.currentIndex === quizState.questions.length-1) submitBtn.style.display = 'inline-block'; };
+        b.className = 'btn';
+        b.classList.add('btn-secondary');
+        b.style.marginRight = '8px';
+        b.textContent = opt.label;
+        // highlight if already selected
+        if (quizState.responses[quizState.currentIndex] === i) {
+            b.classList.add('selected');
+            b.style.boxShadow = '0 0 0 3px rgba(52,152,219,0.15)';
+        }
+        b.onclick = () => {
+            // record response
+            quizState.responses[quizState.currentIndex] = i;
+            // recalc scores from responses
+            recalcScores();
+            // enable next or submit
+            nextBtn.disabled = quizState.currentIndex >= quizState.questions.length - 1;
+            submitBtn.style.display = (quizState.currentIndex === quizState.questions.length - 1) ? 'inline-block' : 'none';
+            // re-render to show selection
+            renderQuizQuestion();
+        };
         questionOptions.appendChild(b);
     });
+
     prevBtn.disabled = quizState.currentIndex === 0;
-    nextBtn.disabled = true;
+    // Next should be enabled only if an option selected
+    nextBtn.disabled = quizState.responses[quizState.currentIndex] === null;
     submitBtn.style.display = 'none';
-    document.getElementById('currentScore').textContent = quizState.score;
+    if (quizState.currentIndex === quizState.questions.length - 1 && quizState.responses[quizState.currentIndex] !== null) {
+        submitBtn.style.display = 'inline-block';
+    }
+
+    // update score display (aggregate)
+    const totalScore = Object.values(quizState.scores).reduce((s, v) => s + v, 0);
+    document.getElementById('currentScore').textContent = totalScore;
+    document.getElementById('progressText').textContent = `Question ${quizState.currentIndex + 1} of ${quizState.questions.length}`;
+    const fill = document.getElementById('quizProgress');
+    if (fill) fill.style.width = ((quizState.currentIndex + 1) / quizState.questions.length * 100) + '%';
+}
+
+function recalcScores() {
+    quizState.scores = { A: 0, B: 0, AB: 0, O: 0 };
+    quizState.responses.forEach((respIndex, qIdx) => {
+        if (respIndex === null || respIndex === undefined) return;
+        const opt = quizState.questions[qIdx].options[respIndex];
+        if (!opt || !opt.weights) return;
+        Object.keys(opt.weights).forEach(k => {
+            quizState.scores[k] += opt.weights[k];
+        });
+    });
 }
 
 function previousQuestion() { if (quizState.currentIndex > 0) { quizState.currentIndex -= 1; renderQuizQuestion(); } }
-function nextQuestion() { if (quizState.currentIndex < quizState.questions.length-1) { quizState.currentIndex += 1; renderQuizQuestion(); } }
+function nextQuestion() { if (quizState.currentIndex < quizState.questions.length - 1 && quizState.responses[quizState.currentIndex] !== null) { quizState.currentIndex += 1; renderQuizQuestion(); } }
 
 function submitQuiz() {
-    const predicted = quizState.score >= 50 ? 'A' : 'B';
-    const actual = predicted === 'A' ? 'A' : 'B';
-    showResultPopup({ predictedLabel: predicted, actualLabel: actual, score: quizState.score });
+    // Ensure scores reflect current responses
+    recalcScores();
+    // Determine predicted blood type by highest score
+    const scores = quizState.scores;
+    const entries = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    let predicted = entries[0][0];
+    // If tie or all zero, mark as Unknown
+    if (entries.length > 1 && entries[0][1] === entries[1][1]) {
+        predicted = 'Unknown';
+    }
+
+    showResultPopup({ predictedLabel: predicted, actualLabel: 'N/A', score: JSON.stringify(scores) });
 }
 
 function backToQuizSelection() {
@@ -170,17 +309,18 @@ function showResultPopup({ predictedLabel, actualLabel, score }) {
         popup.style.padding = '16px';
         popup.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
         popup.style.zIndex = 9999;
-        popup.style.minWidth = '260px';
+        popup.style.minWidth = '320px';
         document.body.appendChild(popup);
     }
     const p = String(predictedLabel ?? 'Unknown');
     const a = String(actualLabel ?? 'Unknown');
-    popup.innerHTML = `\n        <h3>Test Result</h3>\n        <p><strong>Predicted:</strong> ${p}</p>\n        <p><strong>Actual:</strong> ${a}</p>\n        <p><strong>Score:</strong> ${score ?? 'N/A'}</p>\n        <div style="text-align:right; margin-top:8px;">\n            <button id="closeResultPopup" class="btn btn-secondary">Close</button>\n        </div>\n    `;
+    const scoreHtml = typeof score === 'string' ? escapeHtml(score) : escapeHtml(JSON.stringify(score));
+    popup.innerHTML = `\n        <h3>Test Result</h3>\n        <p><strong>Predicted:</strong> ${escapeHtml(p)}</p>\n        <p><strong>Actual:</strong> ${escapeHtml(a)}</p>\n        <p><strong>Scores:</strong> ${scoreHtml}</p>\n        <div style="text-align:right; margin-top:8px;">\n            <button id="closeResultPopup" class="btn btn-secondary">Close</button>\n        </div>\n    `;
     const closeBtn = document.getElementById('closeResultPopup');
     if (closeBtn) closeBtn.onclick = () => popup.remove();
 }
 
-// Expose popup globally if other scripts want to call it
+// Expose popup globally
 window.showResultPopup = showResultPopup;
 
 async function handlePatientRegistration(e) {
