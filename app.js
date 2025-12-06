@@ -462,6 +462,8 @@ function displayResults(data) {
         <h3>Test Results</h3>
     `;
     
+    // Save displayed results for verification callbacks
+    window.lastDisplayedResults = data.results || [];
     data.results.forEach(result => {
         html += createResultCard(result);
     });
@@ -470,11 +472,13 @@ function displayResults(data) {
 }
 
 function createResultCard(result) {
+    const rid = result.resultId || result.testId || '';
     let html = `
-        <div class="result-item">
-            <h4>${getTestTypeName(result.testType)}</h4>
+        <div class="result-item" data-result-id="${rid}">
+            <h4>${escapeHtml(getTestTypeName(result.testType))}</h4>
             <p><strong>Test Date:</strong> ${formatDate(result.processedDate)}</p>
-            <p><strong>Status:</strong> <span class="status-${result.status}">${result.status}</span></p>
+            <p><strong>Status:</strong> <span class="status-${escapeHtml(String(result.status||''))}">${escapeHtml(result.status||'')}</span></p>
+            <p><button class="btn btn-primary" onclick="showVerificationPopup('${rid}')">Click here to verify</button></p>
             
             <div class="test-info">
     `;
@@ -499,6 +503,70 @@ function createResultCard(result) {
     `;
     
     return html;
+}
+
+// Verification popup (does not replace the results page)
+function showVerificationPopup(resultId) {
+    if (!resultId || !window.lastDisplayedResults) return showMessage('Result not available for verification', 'error');
+    const result = window.lastDisplayedResults.find(r => (r.resultId === resultId) || (r.testId === resultId));
+    if (!result) return showMessage('Result not found', 'error');
+
+    let popup = document.getElementById('verificationPopup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'verificationPopup';
+        popup.style.position = 'fixed';
+        popup.style.left = '50%';
+        popup.style.top = '18%';
+        popup.style.transform = 'translateX(-50%)';
+        popup.style.background = '#fff';
+        popup.style.border = '1px solid #ccc';
+        popup.style.padding = '18px';
+        popup.style.boxShadow = '0 6px 24px rgba(0,0,0,0.18)';
+        popup.style.zIndex = 100001;
+        popup.style.minWidth = '360px';
+        document.body.appendChild(popup);
+    }
+
+    const patient = result.patient || {};
+    const patientName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || result.patientId || '';
+
+    popup.innerHTML = `
+        <h3>Verify Result</h3>
+        <p><strong>Result ID:</strong> ${escapeHtml(result.resultId || result.testId || '')}</p>
+        <p><strong>Patient:</strong> ${escapeHtml(patientName)}</p>
+        <p><strong>Test Type:</strong> ${escapeHtml(getTestTypeName(result.testType || result.testType || ''))}</p>
+        <p><strong>Processed:</strong> ${escapeHtml(formatDate(result.processedDate || result.processedDate))}</p>
+        <hr>
+        <div style="max-height:220px; overflow:auto; margin-bottom:8px;">
+            <pre style="white-space:pre-wrap; font-size:13px;">${escapeHtml(JSON.stringify(result.analysis || result.results || {}, null, 2))}</pre>
+        </div>
+        <div style="text-align:right; margin-top:8px;">
+            <button id="confirmVerifyBtn" class="btn btn-primary">Confirm Verification</button>
+            <button id="closeVerifyBtn" class="btn btn-secondary" style="margin-left:8px;">Close</button>
+        </div>
+    `;
+
+    document.getElementById('closeVerifyBtn').onclick = () => popup.remove();
+    document.getElementById('confirmVerifyBtn').onclick = () => {
+        const card = document.querySelector(`[data-result-id="${resultId}"]`);
+        if (card) {
+            if (!card.querySelector('.verified-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'verified-badge';
+                badge.textContent = 'Verified';
+                badge.style.background = '#2ecc71';
+                badge.style.color = '#fff';
+                badge.style.padding = '4px 8px';
+                badge.style.borderRadius = '12px';
+                badge.style.marginLeft = '8px';
+                const header = card.querySelector('h4');
+                if (header) header.appendChild(badge);
+            }
+        }
+        showMessage('Result marked as verified', 'success');
+        popup.remove();
+    };
 }
 
 function getTestTypeName(testType) {
